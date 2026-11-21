@@ -44,6 +44,34 @@ class FormulaApiTest {
     }
 
     @Test
+    void reformulateReplacesBannedIngredientsThenConsolidates() throws Exception {
+        // Lilial + Lyral are banned. Lyral's option 1 uses Lilial, so option 2 is used.
+        String body = """
+                {"consolidate":true,"lines":[
+                  {"ingredientId":"LIL","percentage":4},
+                  {"ingredientId":"LYR","percentage":6},
+                  {"ingredientId":"HED","percentage":10},
+                  {"ingredientId":"GER","percentage":5},
+                  {"ingredientId":"DPG","percentage":75}]}
+                """;
+        mvc.perform(post("/api/formulas/reformulate").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.replacements[0].trigger").value("BANNED"))
+                .andExpect(jsonPath("$.replacements[1].optionUsed").value(2))
+                .andExpect(jsonPath("$.replacements[1].skipped[0].blockedIngredient").value("LIL"))
+                .andExpect(jsonPath("$.unresolved.length()").value(0))
+                .andExpect(jsonPath("$.finalFormula[0].ingredientId").value("ACC-FRH"))
+                .andExpect(jsonPath("$.finalFormula[0].percentage").value(23.2));
+    }
+
+    @Test
+    void recipesAreLoadedFromTheDatabase() throws Exception {
+        mvc.perform(get("/api/recipes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", greaterThan(5)));
+    }
+
+    @Test
     void unknownIngredientIsRejected() throws Exception {
         String body = """
                 {"lines":[{"ingredientId":"NOPE","percentage":10}]}

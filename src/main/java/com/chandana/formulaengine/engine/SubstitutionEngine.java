@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Applies A + B -> C rules to a formula until no rule matches any more.
@@ -34,6 +35,14 @@ public final class SubstitutionEngine {
     }
 
     public SubstitutionResult optimize(List<FormulaLine> formula) {
+        return optimize(formula, rule -> true);
+    }
+
+    /**
+     * Same as {@link #optimize(List)}, but a rule only fires if {@code allowed} says yes.
+     * Reformulation uses this so a banned or avoided ingredient is never folded into an accord.
+     */
+    public SubstitutionResult optimize(List<FormulaLine> formula, Predicate<SubstitutionRule> allowed) {
         LookupStats stats = new LookupStats();
         long start = System.nanoTime();
 
@@ -50,7 +59,7 @@ public final class SubstitutionEngine {
                     FormulaLine a = current.get(i);
                     FormulaLine b = current.get(j);
                     Optional<SubstitutionRule> hit = lookup.find(a.ingredientId(), b.ingredientId(), stats);
-                    if (hit.isPresent()) {
+                    if (hit.isPresent() && allowed.test(hit.get())) {
                         SubstitutionRule rule = hit.get();
                         double combined = round(a.percentage() + b.percentage());
                         current = replace(current, i, j, new FormulaLine(rule.result(), combined));
@@ -82,7 +91,7 @@ public final class SubstitutionEngine {
     }
 
     /** Same ingredient listed twice -> one line with the summed percentage (keeps first position). */
-    static List<FormulaLine> mergeDuplicates(List<FormulaLine> lines) {
+    public static List<FormulaLine> mergeDuplicates(List<FormulaLine> lines) {
         Map<String, Double> merged = new LinkedHashMap<>();
         for (FormulaLine line : lines) {
             merged.merge(line.ingredientId(), line.percentage(), Double::sum);
@@ -93,7 +102,7 @@ public final class SubstitutionEngine {
     }
 
     /** Avoids floating point noise like 21.999999999 in the output. */
-    static double round(double value) {
+    public static double round(double value) {
         return Math.round(value * 10_000d) / 10_000d;
     }
 }

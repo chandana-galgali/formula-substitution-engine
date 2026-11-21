@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Formula Substitution Engine · Chandana Galgali</title>
-<meta name="description" content="Interactive demo of a HashMap-based A + B → C ingredient substitution engine built with Java, Spring Boot, Maven and SQL.">
+<meta name="description" content="Interactive demo of a HashMap-based ingredient substitution engine (A + B → C consolidation and C → A + B replacement of banned or unwanted materials) built with Java, Spring Boot, Maven and SQL.">
 <style>
 :root{--bg:#0a0e14;--card:#111823;--card2:#0d131c;--fg:#d6e2f0;--mut:#7d8ea3;--a:#5eead4;--b:#a78bfa;--c:#fbbf24;--bd:#1f2b3b;--bad:#f87171;
 --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
@@ -12,13 +12,20 @@
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
 a{color:var(--a);text-decoration:none}a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:.9em}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
 header{padding:56px 0 28px;border-bottom:1px solid var(--bd);background:radial-gradient(900px 300px at 10% -10%,color-mix(in srgb,var(--a) 10%,transparent),transparent),radial-gradient(700px 260px at 100% 0,color-mix(in srgb,var(--b) 10%,transparent),transparent)}
 .kicker{font:12px var(--mono);color:var(--mut);letter-spacing:.04em}
 h1{font-size:clamp(28px,4.4vw,44px);line-height:1.15;margin:10px 0 12px;letter-spacing:-.02em}
-h1 em{font-style:normal;font-family:var(--mono);color:var(--a);font-size:.8em}
-.lede{max-width:720px;color:var(--mut);margin:0 0 20px}
+h1 em{font-style:normal;font-family:var(--mono);color:var(--a);font-size:.62em;white-space:nowrap}
+h1 em i{font-style:normal;color:var(--b)}
+.lede{max-width:760px;color:var(--mut);margin:0 0 20px}
 .lede b{color:var(--fg);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:820px;margin:0 0 20px}
+@media(max-width:640px){.two{grid-template-columns:1fr}}
+.two div{background:color-mix(in srgb,var(--card) 80%,transparent);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--mut)}
+.two b{display:block;font:600 13px var(--mono);margin-bottom:2px}
+.two div:first-child b{color:var(--a)}.two div:last-child b{color:var(--b)}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .tag{font:12px var(--mono);border:1px solid var(--bd);padding:3px 10px;border-radius:999px;color:var(--fg);background:var(--card)}
 .mode{font:12px var(--mono);padding:4px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--b) 50%,transparent);color:var(--b);background:color-mix(in srgb,var(--b) 10%,transparent)}
@@ -27,15 +34,19 @@ h1 em{font-style:normal;font-family:var(--mono);color:var(--a);font-size:.8em}
 .btn:hover{border-color:var(--a);color:var(--a);text-decoration:none}
 .btn.pri{background:color-mix(in srgb,var(--a) 16%,var(--card));border-color:color-mix(in srgb,var(--a) 55%,transparent);color:var(--a)}
 .btn.pri:hover{background:var(--a);color:var(--bg)}
+.btn.vio{background:color-mix(in srgb,var(--b) 16%,var(--card));border-color:color-mix(in srgb,var(--b) 55%,transparent);color:var(--b)}
+.btn.vio:hover{background:var(--b);color:var(--bg)}
 .btn:disabled{opacity:.5;cursor:wait}
 section{padding:40px 0;border-bottom:1px solid var(--bd)}
 h2{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
 h2 span{font:13px var(--mono);color:var(--a);margin-right:8px}
-.sub{color:var(--mut);margin:0 0 22px;max-width:760px}
+#replace h2 span{color:var(--b)}
+.sub{color:var(--mut);margin:0 0 22px;max-width:780px}
+.sub b{color:var(--fg)}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
 @media(max-width:860px){.grid2{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
-.card h3{font-size:14px;margin:0 0 12px;font-family:var(--mono);color:var(--mut);font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3{font-size:14px;margin:0 0 12px;font-family:var(--mono);color:var(--mut);font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 select,input{font:13px var(--sans);background:var(--card2);color:var(--fg);border:1px solid var(--bd);border-radius:7px;padding:7px 9px;outline:none;min-width:0}
 select:focus,input:focus{border-color:var(--a)}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -54,16 +65,27 @@ tr:last-child td{border-bottom:0}
 .stat{background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
 .stat small{display:block;font:11px var(--mono);color:var(--mut)}
 .stat b{font:600 18px var(--mono);color:var(--fg)}
-.stat b.a{color:var(--a)}
+.stat b.a{color:var(--a)}.stat b.v{color:var(--b)}.stat b.r{color:var(--bad)}
 .steps{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px}
-.steps li{background:var(--card2);border:1px solid var(--bd);border-left:3px solid var(--b);border-radius:10px;padding:10px 12px;opacity:0;transform:translateY(6px);animation:in .35s forwards}
+.steps li{background:var(--card2);border:1px solid var(--bd);border-left:3px solid var(--a);border-radius:10px;padding:10px 12px;opacity:0;transform:translateY(6px);animation:in .35s forwards}
+.steps.rep li{border-left-color:var(--b)}
+.steps li.bad{border-left-color:var(--bad)}
 @keyframes in{to{opacity:1;transform:none}}
+.phase{font:500 11.5px var(--mono);color:var(--mut);margin:4px 0 8px;display:flex;align-items:center;gap:8px}
+.phase::after{content:'';flex:1;height:1px;background:var(--bd)}
 .eq{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13.5px}
 .chip{font:12.5px var(--mono);padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--fg) 7%,transparent);border:1px solid var(--bd)}
 .chip.acc{color:var(--a);border-color:color-mix(in srgb,var(--a) 45%,transparent);background:color-mix(in srgb,var(--a) 9%,transparent)}
+.chip.ban{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent);text-decoration:line-through;text-decoration-thickness:1px}
+.chip.res{color:var(--c);border-color:color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 8%,transparent)}
+.chip.new{color:var(--b);border-color:color-mix(in srgb,var(--b) 45%,transparent);background:color-mix(in srgb,var(--b) 9%,transparent)}
 .op{color:var(--mut);font-family:var(--mono)}
 .why{font-size:12.5px;color:var(--mut);margin-top:5px}
-.why i{font-style:normal;font:11px var(--mono);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);padding:0 6px;border-radius:4px;margin-right:6px}
+.why i,.flag{font-style:normal;font:11px var(--mono);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);padding:0 6px;border-radius:4px;margin-right:6px;white-space:nowrap}
+.flag.BANNED{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.flag.AVOIDED{color:var(--b);border-color:color-mix(in srgb,var(--b) 45%,transparent)}
+.skip{font:12px var(--mono);color:var(--mut);margin-top:4px}
+.skip s{color:var(--bad);text-decoration:none}
 .empty{color:var(--mut);font-size:13.5px;padding:18px;text-align:center;border:1px dashed var(--bd);border-radius:10px}
 .ba{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .ba h4{margin:0 0 6px;font:500 12px var(--mono);color:var(--mut)}
@@ -75,6 +97,19 @@ tr:last-child td{border-bottom:0}
 .addrule2{display:grid;grid-template-columns:auto 1fr auto;gap:6px;margin-top:6px}
 @media(max-width:560px){.addrule{grid-template-columns:1fr}.addrule .op{display:none}.addrule2{grid-template-columns:1fr}}
 .msg{font-size:12.5px;margin-top:8px;min-height:18px}.msg.err{color:var(--bad)}.msg.ok{color:var(--a)}
+.avoid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.av{font:12px var(--mono);padding:4px 10px;border-radius:999px;border:1px solid var(--bd);background:var(--card2);color:var(--fg);cursor:pointer;transition:.15s}
+.av:hover{border-color:var(--b)}
+.av.on{color:var(--b);border-color:color-mix(in srgb,var(--b) 60%,transparent);background:color-mix(in srgb,var(--b) 14%,var(--card2));text-decoration:line-through}
+.av.lock{cursor:default}
+.av.lock.BANNED{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,transparent);background:color-mix(in srgb,var(--bad) 10%,var(--card2))}
+.av.lock.RESTRICTED{color:var(--c);border-color:color-mix(in srgb,var(--c) 50%,transparent);background:color-mix(in srgb,var(--c) 8%,var(--card2))}
+.label{font:500 11.5px var(--mono);color:var(--mut);margin-top:16px}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mut);cursor:pointer}
+.check input{accent-color:var(--a)}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{font:12.5px var(--mono);background:var(--card2);color:var(--mut);border:1px solid var(--bd);padding:6px 12px;border-radius:8px;cursor:pointer}
+.tabs button.on{color:var(--fg);border-color:var(--a)}
 .bench{display:grid;gap:14px}
 .hbar{display:grid;grid-template-columns:120px 1fr 110px;gap:10px;align-items:center;font:12.5px var(--mono)}
 .hbar .track{height:22px;background:var(--card2);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
@@ -97,16 +132,20 @@ footer{padding:28px 0 48px;color:var(--mut);font-size:13px}
 <header>
   <div class="wrap">
     <div class="kicker">// java developer intern project · keva (jan–mar 2024) · rebuilt as a public demo</div>
-    <h1>Formula Substitution Engine <em>A + B → C</em></h1>
-    <p class="lede">When two ingredients in a formula can be replaced by one pre-blended accord, the engine finds the pair and swaps it.
-      Every rule sits in a <b>HashMap</b> keyed by the ingredient pair, so each check costs <b>O(1)</b> no matter how big the rule book is.
-      A manual top-to-bottom check costs <b>O(R)</b>.</p>
+    <h1>Formula Substitution Engine <em>A + B → C <i>· C → A + B</i></em></h1>
+    <p class="lede">Perfume formulas change all the time. A material gets banned, goes over a limit, gets too expensive, or a client doesn't want it.
+      This engine does the two jobs that come up most, and both run on <b>O(1) HashMap look-ups</b>:</p>
+    <div class="two">
+      <div><b>A + B → C · consolidate</b>Two raw materials that a ready-made accord already covers get swapped for that one accord. Fewer weigh-ins.</div>
+      <div><b>C → A + B · replace</b>An ingredient you can't or don't want to use gets swapped for a blend of alternatives with a similar effect.</div>
+    </div>
     <div class="row" style="margin-bottom:18px">
       <span class="tag">Java 17</span><span class="tag">Spring Boot 3</span><span class="tag">Apache Maven</span><span class="tag">SQL · H2</span><span class="tag">JUnit 5</span><span class="tag">OOP</span>
     </div>
     <div class="row">
-      <a class="btn pri" href="#try">Try it ↓</a>
-      <a class="btn" id="srcLink" href="https://github.com/chandana-galgali/formula-substitution-engine" target="_blank" rel="noopener">Java source ↗</a>
+      <a class="btn pri" href="#try">Consolidate ↓</a>
+      <a class="btn vio" href="#replace">Replace ↓</a>
+      <a class="btn" href="https://github.com/chandana-galgali/formula-substitution-engine" target="_blank" rel="noopener">Java source ↗</a>
       <a class="btn" href="https://chandana-galgali.github.io" target="_blank" rel="noopener">Portfolio ↗</a>
       <span class="mode" id="mode">checking backend…</span>
     </div>
@@ -115,59 +154,102 @@ footer{padding:28px 0 48px;color:var(--mut);font-size:13px}
 
 <main class="wrap">
 
-  <!-- 1. TRY IT -->
+  <!-- 1. CONSOLIDATE -->
   <section id="try">
-    <h2><span>01</span>Optimize a formula</h2>
+    <h2><span>01</span>Consolidate a formula · A + B → C</h2>
     <p class="sub">Pick a sample formula or build your own, then run it. Watch rules fire one after another. Chained rules work too: an accord made in step 1 can be replaced again in step 2.</p>
     <div class="grid2">
       <div class="card">
         <h3><span>input formula</span>
-          <select id="preset" aria-label="Sample formula"></select>
+          <select id="presetC" aria-label="Sample formula"></select>
         </h3>
-        <table class="lines"><thead><tr><th>Ingredient</th><th style="text-align:right">% w/w</th><th></th></tr></thead><tbody id="lines"></tbody></table>
+        <table class="lines"><thead><tr><th>Ingredient</th><th style="text-align:right">% w/w</th><th></th></tr></thead><tbody id="linesC"></tbody></table>
         <div class="controls">
-          <div class="row"><button class="btn" id="addLine">+ add ingredient</button><span class="total" id="total"></span></div>
+          <div class="row"><button class="btn" id="addLineC">+ add ingredient</button><span class="total" id="totalC"></span></div>
         </div>
         <div class="controls">
-          <div class="seg" role="group" aria-label="Lookup strategy">
+          <div class="seg" id="stratC" role="group" aria-label="Lookup strategy">
             <button data-s="HASHMAP" class="on">HashMap · O(1)</button>
             <button data-s="LINEAR_SCAN">Linear scan · O(R)</button>
           </div>
-          <button class="btn pri" id="run">▶ Optimize</button>
+          <button class="btn pri" id="runC">▶ Optimize</button>
         </div>
       </div>
-
-      <div class="card" id="resultCard">
+      <div class="card">
         <h3><span>result</span><span id="strategyUsed"></span></h3>
-        <div id="result"><div class="empty">Press <b>Optimize</b> to run the engine.</div></div>
+        <div id="resultC"><div class="empty">Press <b>Optimize</b> to run the engine.</div></div>
       </div>
     </div>
   </section>
 
-  <!-- 2. RULE BOOK -->
+  <!-- 2. REPLACE -->
+  <section id="replace">
+    <h2><span>02</span>Replace unwanted ingredients · C → A + B</h2>
+    <p class="sub">Every ingredient has a limit: <b>banned</b> (0%), <b>restricted</b> (a maximum %), or no limit. You can also <b>avoid</b> anything yourself, for example a material that's too expensive, out of stock, or that a client doesn't want.
+      The engine keeps what's allowed and gives the rest to a substitute blend. A substitute blend is only used if <b>its own</b> ingredients are allowed. Otherwise the next option is tried, so one problem is never swapped for another.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3><span>formula to reformulate</span>
+          <select id="presetR" aria-label="Sample formula"></select>
+        </h3>
+        <table class="lines"><thead><tr><th>Ingredient</th><th style="text-align:right">% w/w</th><th></th></tr></thead><tbody id="linesR"></tbody></table>
+        <div class="controls">
+          <div class="row"><button class="btn" id="addLineR">+ add ingredient</button><span class="total" id="totalR"></span></div>
+        </div>
+        <div class="label">status · click an ingredient to avoid it</div>
+        <div class="avoid" id="avoid"></div>
+        <div class="row" style="margin-top:8px"><select id="avoidMore" aria-label="Avoid another ingredient" style="max-width:260px"></select></div>
+        <div class="controls">
+          <label class="check"><input type="checkbox" id="consolidate" checked> then consolidate (A + B → C)</label>
+          <button class="btn vio" id="runR">▶ Reformulate</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span>result</span><span class="note" id="reviewNote"></span></h3>
+        <div id="resultR"><div class="empty">Press <b>Reformulate</b> to run the engine.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. RULE BOOK -->
   <section id="rules">
-    <h2><span>02</span>The rule book</h2>
-    <p class="sub">In the Java app these rows live in a SQL table (<code>substitution_rule</code>). On startup they are loaded once into a <code>HashMap&lt;PairKey, SubstitutionRule&gt;</code>. <code>PairKey</code> sorts the two codes, so <b>A + B</b> and <b>B + A</b> find the same rule.</p>
+    <h2><span>03</span>The rule book</h2>
+    <p class="sub">In the Java app all of this lives in SQL tables and is loaded once at startup into HashMaps:
+      <code>HashMap&lt;PairKey, SubstitutionRule&gt;</code> for consolidation, <code>HashMap&lt;String, List&lt;ReplacementRecipe&gt;&gt;</code> for replacements, and <code>HashMap&lt;String, Double&gt;</code> for limits.</p>
     <div class="card">
-      <table class="rules"><thead><tr><th>#</th><th>Rule</th><th>Why</th></tr></thead><tbody id="ruleRows"></tbody></table>
-      <div class="addrule">
-        <select id="ra" aria-label="Ingredient A"></select><span class="op">+</span>
-        <select id="rb" aria-label="Ingredient B"></select><span class="op">→</span>
-        <select id="rc" aria-label="Result"></select>
+      <div class="tabs" id="bookTabs">
+        <button data-t="tCons" class="on">A + B → C rules</button>
+        <button data-t="tRep">C → A + B recipes</button>
+        <button data-t="tReg">Banned &amp; restricted</button>
       </div>
-      <div class="addrule2">
-        <select id="rr" aria-label="Reason"><option>CONSOLIDATION</option><option>COST</option><option>SUPPLY</option><option>COMPLIANCE</option></select>
-        <input id="rn" placeholder="Short note (optional)" maxlength="120">
-        <button class="btn" id="addRule">+ add rule</button>
+      <div id="tCons">
+        <table class="rules"><thead><tr><th>#</th><th>Rule</th><th>Why</th></tr></thead><tbody id="ruleRows"></tbody></table>
+        <div class="addrule">
+          <select id="ra" aria-label="Ingredient A"></select><span class="op">+</span>
+          <select id="rb" aria-label="Ingredient B"></select><span class="op">→</span>
+          <select id="rc" aria-label="Result"></select>
+        </div>
+        <div class="addrule2">
+          <select id="rr" aria-label="Reason"><option>CONSOLIDATION</option><option>COST</option><option>SUPPLY</option><option>COMPLIANCE</option></select>
+          <input id="rn" placeholder="Short note (optional)" maxlength="120">
+          <button class="btn" id="addRule">+ add rule</button>
+        </div>
+        <div class="msg" id="ruleMsg"></div>
       </div>
-      <div class="msg" id="ruleMsg"></div>
+      <div id="tRep" hidden>
+        <table class="rules"><thead><tr><th>Option</th><th>Replace with</th><th>Note</th></tr></thead><tbody id="recipeRows"></tbody></table>
+      </div>
+      <div id="tReg" hidden>
+        <table class="rules"><thead><tr><th>Status</th><th>Ingredient</th><th>Rule</th></tr></thead><tbody id="regRows"></tbody></table>
+        <p class="note" style="margin:10px 0 0">The bans are real EU cosmetics rules. The oakmoss limit is a simplified number for this demo. Real limits depend on product type and the current IFRA standards.</p>
+      </div>
     </div>
   </section>
 
-  <!-- 3. BENCHMARK -->
+  <!-- 4. BENCHMARK -->
   <section id="bench">
-    <h2><span>03</span>Prove the O(1) claim</h2>
-    <p class="sub">This generates a large synthetic rule book and runs the same random lookups through both strategies (half hits, half misses). The HashMap does exactly <b>one</b> comparison per lookup. The scan does hundreds or thousands.</p>
+    <h2><span>04</span>Prove the O(1) claim</h2>
+    <p class="sub">This generates a large synthetic rule book and runs the same random look-ups through both strategies (half hits, half misses). The HashMap does exactly <b>one</b> comparison per look-up. The scan does hundreds or thousands.</p>
     <div class="card bench">
       <div class="controls" style="margin-top:0">
         <div class="seg" id="benchSize" role="group" aria-label="Rule book size">
@@ -180,7 +262,7 @@ footer{padding:28px 0 48px;color:var(--mut);font-size:13px}
       <div class="row" style="justify-content:space-between;align-items:flex-end;gap:16px">
         <div><div class="big" id="speedup">–</div><div class="note">faster with the HashMap</div></div>
         <table class="mini" style="max-width:360px"><tbody>
-          <tr><td>Lookups run</td><td id="bLookups">–</td></tr>
+          <tr><td>Look-ups run</td><td id="bLookups">–</td></tr>
           <tr><td>HashMap comparisons</td><td id="bCH">–</td></tr>
           <tr><td>Linear-scan comparisons</td><td id="bCL">–</td></tr>
           <tr><td>Measured in</td><td id="bWhere">–</td></tr>
@@ -189,51 +271,52 @@ footer{padding:28px 0 48px;color:var(--mut);font-size:13px}
     </div>
   </section>
 
-  <!-- 4. HOW IT WORKS -->
+  <!-- 5. HOW IT WORKS -->
   <section id="how">
-    <h2><span>04</span>How it works in Java</h2>
-    <p class="sub">The core is plain Java with no framework code, so it is easy to unit-test. Spring Boot wraps it with a REST API and the SQL database.</p>
+    <h2><span>05</span>How it works in Java</h2>
+    <p class="sub">The core is plain Java with no framework code, so it is easy to unit-test. Spring Boot wraps it with a REST API and the SQL database. Reformulation runs <b>replace first, then consolidate</b>. The consolidation step is told never to fold a banned, restricted or avoided ingredient into an accord.</p>
     <div class="grid2">
-<div class="code"><span class="c">// Order-independent key: of("B","A").equals(of("A","B"))</span>
+<div class="code"><span class="c">// A + B -> C: order-independent pair key</span>
 <span class="k">public record</span> <span class="f">PairKey</span>(String first, String second) {
   <span class="k">public static</span> PairKey <span class="f">of</span>(String a, String b) {
     <span class="k">return</span> a.compareTo(b) &lt;= 0
-        ? <span class="k">new</span> PairKey(a, b)
-        : <span class="k">new</span> PairKey(b, a);
+        ? <span class="k">new</span> PairKey(a, b) : <span class="k">new</span> PairKey(b, a);
   }
 }
-
 <span class="c">// O(1): one hash + one bucket read per check</span>
-<span class="k">public</span> Optional&lt;SubstitutionRule&gt; <span class="f">find</span>(String a, String b) {
-  <span class="k">return</span> Optional.ofNullable(index.get(PairKey.of(a, b)));
+Optional.ofNullable(index.get(PairKey.of(a, b)));
+
+<span class="c">// Repeat until nothing matches. Each step removes</span>
+<span class="c">// 2 lines and adds 1, so the loop always ends.</span>
+<span class="k">if</span> (hit.isPresent() &amp;&amp; allowed.test(hit.get())) {
+  current = replace(current, i, j,
+      <span class="k">new</span> FormulaLine(rule.result(), a.pct() + b.pct()));
 }</div>
-<div class="code"><span class="c">// Engine loop: replace first matching pair, repeat.</span>
-<span class="c">// Each step removes 2 lines and adds 1, so it</span>
-<span class="c">// always terminates (no infinite cycles).</span>
-<span class="k">while</span> (changed) {
-  changed = <span class="k">false</span>;
-  <span class="k">for</span> (i ...) <span class="k">for</span> (j = i + 1 ...) {
-    <span class="k">var</span> hit = lookup.find(a.id(), b.id(), stats);
-    <span class="k">if</span> (hit.isPresent()) {
-      current = replace(current, i, j,
-          <span class="k">new</span> FormulaLine(rule.result(), a.pct() + b.pct()));
-      changed = <span class="k">true</span>; <span class="k">break</span> search;
-    }
-  }
-}</div>
+<div class="code"><span class="c">// C -> A + B: two O(1) HashMap reads per line</span>
+<span class="k">double</span> limit = limitFor(id, avoid);     <span class="c">// 0, max %, or ∞</span>
+<span class="k">if</span> (line.pct() &lt;= limit) { keep(line); <span class="k">continue</span>; }
+
+<span class="k">double</span> excess = line.pct() - limit;   <span class="c">// keep what's allowed</span>
+<span class="k">for</span> (ReplacementRecipe r : recipes.getOrDefault(id, List.of())) {
+  <span class="k">var</span> problem = firstProblem(r, avoid); <span class="c">// is a part limited too?</span>
+  <span class="k">if</span> (problem == <span class="k">null</span>) { chosen = r; <span class="k">break</span>; }
+  skipped.add(problem);                <span class="c">// try the next option</span>
+}
+<span class="k">if</span> (chosen == <span class="k">null</span>) flagForReview(id);   <span class="c">// never guess</span>
+<span class="k">else</span> add(split(excess, chosen));       <span class="c">// e.g. 60% A + 40% B</span></div>
     </div>
     <div class="arch">
-      <div><b>model/</b><span>Records: Ingredient, SubstitutionRule, FormulaLine</span></div>
-      <div><b>engine/</b><span>RuleLookup interface + HashMap & linear-scan strategies</span></div>
-      <div><b>repository/</b><span>JdbcTemplate SQL queries against H2</span></div>
-      <div><b>service/</b><span>Loads rules once, validates input, adds rules</span></div>
-      <div><b>web/</b><span>REST: /api/formulas/optimize, /api/rules, /api/benchmark</span></div>
+      <div><b>model/</b><span>Records: Ingredient, SubstitutionRule, ReplacementRecipe, FormulaLine</span></div>
+      <div><b>engine/</b><span>SubstitutionEngine (A+B→C), ReplacementEngine (C→A+B), lookup strategies</span></div>
+      <div><b>repository/</b><span>JdbcTemplate SQL incl. a JOIN for recipes + parts</span></div>
+      <div><b>service/</b><span>Loads tables into HashMaps, validates, runs the pipeline</span></div>
+      <div><b>web/</b><span>REST: /optimize, /reformulate, /rules, /recipes, /benchmark</span></div>
     </div>
   </section>
 </main>
 
 <footer class="wrap">
-  <p>Built by <a href="https://chandana-galgali.github.io" target="_blank" rel="noopener">Chandana Galgali</a>. This public demo recreates the approach from my Java Developer internship at Keva. Ingredient names are common, public aroma materials, but the accords, rules and percentages are made up for illustration. They are not company formulas.</p>
+  <p>Built by <a href="https://chandana-galgali.github.io" target="_blank" rel="noopener">Chandana Galgali</a>. This public demo recreates the approach from my Java Developer internship at Keva. Ingredient names are common, public aroma materials, and the bans shown are real EU rules. All accords, recipes, limits and percentages are made up for illustration. They are not company formulas.</p>
   <p class="note" id="modeNote"></p>
 </footer>
 
@@ -246,10 +329,15 @@ const DATA = {
     ['HED','Hedione','Floral'],['ISO','Iso E Super','Woody'],['AMB','Ambroxan','Amber'],['GAL','Galaxolide','Musk'],
     ['CED','Cedarwood Oil','Woody'],['PEA','Phenylethyl Alcohol','Floral'],['GER','Geraniol','Floral'],['CTR','Citronellol','Floral'],
     ['EUG','Eugenol','Spicy'],['BEN','Benzyl Benzoate','Solvent'],['DPG','Dipropylene Glycol','Solvent'],
+    ['EVR','Evernyl','Mossy'],['EBR','Ethylene Brassylate','Musk'],
     ['ACC-LAV','Lavender Accord LV-1','Accord',1],['ACC-CIT','Citrus Top Accord CT-2','Accord',1],['ACC-ROS','Rose Accord RS-3','Accord',1],
     ['ACC-VAN','Vanilla Base VB-4','Accord',1],['ACC-WOD','Woody Amber Base WA-5','Accord',1],['ACC-FOU','Fougere Base FG-6','Accord',1],
-    ['ACC-MSK','Clean Musk Base CM-7','Accord',1],['ACC-FRH','Fresh Floral Accord FF-8','Accord',1]
-  ].map(([id,name,category,acc])=>({id,name,category,accord:!!acc})),
+    ['ACC-MSK','Clean Musk Base CM-7','Accord',1],['ACC-FRH','Fresh Floral Accord FF-8','Accord',1],
+    ['LIL','Lilial (BMHCA)','Floral',0,'BANNED',0,'Banned in EU cosmetics from 1 Mar 2022 (Reg. EU 2021/1902)'],
+    ['LYR','Lyral (HICC)','Floral',0,'BANNED',0,'Banned in EU cosmetics from 23 Aug 2021 (Reg. EU 2017/1410)'],
+    ['OAK','Oakmoss Absolute','Mossy',0,'RESTRICTED',0.1,'Atranol/chloroatranol banned in EU; low-atranol oakmoss limited (demo limit 0.1%)']
+  ].map(([id,name,category,acc,status,max,note]) => ({id, name, category, accord:!!acc, status:status||'ACTIVE',
+        maxPercent: max ?? null, regulatoryNote: note ?? null})),
   rules: [
     ['LIN','LNA','ACC-LAV','CONSOLIDATION','Pre-blended lavender accord: one weigh-in instead of two'],
     ['LIM','CIT','ACC-CIT','SUPPLY','Use stocked citrus accord when citral supply is short'],
@@ -260,16 +348,36 @@ const DATA = {
     ['ACC-LAV','COU','ACC-FOU','CONSOLIDATION','Chained rule: lavender accord + coumarin = fougere base'],
     ['GAL','BEN','ACC-MSK','CONSOLIDATION','Musk base is supplied pre-diluted'],
     ['HED','ACC-ROS','ACC-FRH','CONSOLIDATION','Chained rule: hedione + rose accord = fresh floral accord']
-  ].map(([a,b,c,reason,note],i)=>({id:i+1,ingredientA:a,ingredientB:b,result:c,reason,note}))
+  ].map(([a,b,c,reason,note],i)=>({id:i+1,ingredientA:a,ingredientB:b,result:c,reason,note})),
+  recipes: [
+    [1,'LIL',1,[['HED',0.6],['CTR',0.4]],'Rebuild the lily-of-the-valley effect from Hedione + Citronellol'],
+    [2,'LIL',2,[['PEA',0.5],['LIN',0.5]],'Fallback muguet blend: Phenylethyl Alcohol + Linalool'],
+    [3,'LYR',1,[['LIL',1.0]],'Lilial-based swap: skipped automatically, because Lilial is banned too'],
+    [4,'LYR',2,[['HED',0.5],['PEA',0.3],['CTR',0.2]],'Three-part muguet blend'],
+    [5,'OAK',1,[['EVR',0.6],['CED',0.4]],'Evernyl carries the mossy facet, cedarwood adds the dry woody back'],
+    [6,'GAL',1,[['EBR',1.0]],'Macrocyclic musk instead of a polycyclic musk'],
+    [7,'AMB',1,[['ISO',0.7],['CED',0.3]],'Woody-amber effect without Ambroxan (cost / supply)'],
+    [8,'ISO',1,[['CED',0.6],['AMB',0.4]],'Dry woody effect without Iso E Super'],
+    [9,'EVN',1,[['VAN',1.0]],'Plain vanillin (a real reformulation would also adjust the dose: ethyl vanillin is stronger)'],
+    [10,'CIT',1,[['LIM',0.5],['BGM',0.5]],'Citrus freshness from limonene + bergamot instead of citral'],
+    [11,'GER',1,[['CTR',0.6],['PEA',0.4]],'Rose alcohols: citronellol + phenylethyl alcohol']
+  ].map(([id,target,priority,parts,note])=>({id,target,priority,parts:parts.map(([ingredientId,fraction])=>({ingredientId,fraction})),note}))
 };
-const PRESETS = {
+const PRESETS_C = {
   'Lavender Fougère': [['LIN',12],['LNA',10],['COU',6],['BGM',15],['ISO',20],['AMB',2],['DPG',35]],
   'Rose Musk':        [['PEA',18],['GER',8],['HED',20],['GAL',15],['BEN',10],['CED',9],['DPG',20]],
   'Citrus Gourmand':  [['LIM',10],['CIT',4],['VAN',6],['EVN',2],['EUG',1],['CED',12],['DPG',65]],
   'No matches':       [['BGM',30],['CED',20],['EUG',2],['DPG',48]]
 };
+const PRESETS_R = {
+  'Classic Muguet · 2 EU-banned materials': {lines:[['LIL',4],['LYR',6],['HED',10],['GER',5],['DPG',75]], avoid:[]},
+  'Vintage Chypre · oakmoss over its limit': {lines:[['BGM',18],['OAK',0.5],['PEA',6],['GER',4],['CED',10],['GAL',8],['DPG',53.5]], avoid:[]},
+  'Musk & Amber · client drops 2 materials':  {lines:[['GAL',15],['BEN',10],['AMB',3],['ISO',18],['VAN',4],['CED',10],['DPG',40]], avoid:['GAL','AMB']},
+  'Gourmand · no substitute for coumarin':    {lines:[['COU',6],['VAN',5],['EVN',1],['LIN',8],['LNA',6],['DPG',74]], avoid:['COU','EVN']},
+  'Muguet without Hedione · forces option 2': {lines:[['LIL',5],['PEA',10],['CTR',5],['DPG',80]], avoid:['HED']}
+};
 
-/* ---------- ENGINE: JavaScript port of the Java engine package ---------- */
+/* ---------- ENGINE 1: A + B -> C (port of SubstitutionEngine.java) ---------- */
 const pairKey = (a,b) => a <= b ? a + '|' + b : b + '|' + a;           // PairKey.of(a, b)
 const round = v => Math.round(v * 1e4) / 1e4;
 
@@ -288,7 +396,7 @@ function mergeDuplicates(lines){
   const m = new Map(); for (const l of lines) m.set(l.ingredientId, (m.get(l.ingredientId) || 0) + l.percentage);
   return [...m].map(([ingredientId,p]) => ({ingredientId, percentage: round(p)}));
 }
-function optimize(formula, lookup){                                       // SubstitutionEngine.optimize
+function optimize(formula, lookup, allowed = () => true){                 // SubstitutionEngine.optimize
   const stats = {pairChecks:0, comparisons:0}; const t0 = performance.now();
   const original = mergeDuplicates(formula); let current = original.slice(); const steps = [];
   let changed = true;
@@ -296,7 +404,7 @@ function optimize(formula, lookup){                                       // Sub
     changed = false;
     search: for (let i=0;i<current.length;i++) for (let j=i+1;j<current.length;j++){
       const a = current[i], b = current[j], rule = lookup.find(a.ingredientId, b.ingredientId, stats);
-      if (rule){
+      if (rule && allowed(rule)){
         const combined = round(a.percentage + b.percentage);
         const next = []; current.forEach((l,k)=>{ if (k===i) next.push({ingredientId:rule.result, percentage:combined}); else if (k!==j) next.push(l); });
         current = mergeDuplicates(next);
@@ -309,6 +417,66 @@ function optimize(formula, lookup){                                       // Sub
   return {original, optimized:current, steps, strategy:lookup.name, pairChecks:stats.pairChecks, comparisons:stats.comparisons,
           elapsedNanos: Math.round((performance.now()-t0)*1e6)};
 }
+
+/* ---------- ENGINE 2: C -> A + B (port of ReplacementEngine.java) ---------- */
+class ReplacementEngine {
+  constructor(ingredients, recipes){
+    this.limits = new Map(ingredients.filter(i => i.maxPercent != null).map(i => [i.id, i.maxPercent]));   // id -> max %
+    this.recipes = new Map();                                                                               // id -> options
+    for (const r of recipes){ if (!this.recipes.has(r.target)) this.recipes.set(r.target, []); this.recipes.get(r.target).push(r); }
+    for (const list of this.recipes.values()) list.sort((x,y) => x.priority - y.priority || x.id - y.id);
+  }
+  limitFor(id, avoid){ if (avoid.has(id)) return 0; const l = this.limits.get(id); return l == null ? Infinity : l; }
+  isLimited(id, avoid){ return this.limitFor(id, avoid) !== Infinity; }
+  firstProblem(recipe, avoid){
+    for (const p of recipe.parts){
+      if (avoid.has(p.ingredientId)) return {option:recipe.priority, blockedIngredient:p.ingredientId, reason:'AVOIDED'};
+      const l = this.limits.get(p.ingredientId);
+      if (l != null) return {option:recipe.priority, blockedIngredient:p.ingredientId, reason: l === 0 ? 'BANNED' : 'RESTRICTED'};
+    }
+    return null;
+  }
+  split(amount, recipe){
+    let used = 0;
+    return recipe.parts.map((p,k) => { const share = k === recipe.parts.length-1 ? round(amount - used) : round(amount * p.fraction);
+      used += share; return {ingredientId:p.ingredientId, percentage:share}; });
+  }
+  replace(formula, avoid){
+    const out = [], applied = [], unresolved = [];
+    for (const line of mergeDuplicates(formula)){
+      const id = line.ingredientId, limit = this.limitFor(id, avoid);
+      if (line.percentage <= limit){ out.push(line); continue; }
+      const trigger = avoid.has(id) ? 'AVOIDED' : (limit === 0 ? 'BANNED' : 'RESTRICTED');
+      const kept = limit, excess = round(line.percentage - kept);
+      const skipped = []; let chosen = null;
+      for (const r of this.recipes.get(id) || []){ const pr = this.firstProblem(r, avoid); if (!pr){ chosen = r; break; } skipped.push(pr); }
+      if (!chosen){
+        out.push(line); unresolved.push(id);
+        applied.push({ingredientId:id, trigger, originalPercentage:line.percentage, keptPercentage:line.percentage, replacedPercentage:0,
+                      optionUsed:null, added:[], skipped, note:"No usable replacement: needs a perfumer's review"});
+        continue;
+      }
+      if (kept > 0) out.push({ingredientId:id, percentage:kept});
+      const added = this.split(excess, chosen); out.push(...added);
+      applied.push({ingredientId:id, trigger, originalPercentage:line.percentage, keptPercentage:kept, replacedPercentage:excess,
+                    optionUsed:chosen.priority, added, skipped, note:chosen.note});
+    }
+    return {lines: mergeDuplicates(out), replacements: applied, unresolved};
+  }
+}
+function reformulate(lines, avoidList, consolidate, strategy){              // FormulaService.reformulate
+  const avoid = new Set(avoidList), re = new ReplacementEngine(ingredients, recipes);
+  const step1 = re.replace(lines, avoid);
+  let step2 = null, finalFormula = step1.lines;
+  if (consolidate){
+    const lookup = strategy === 'LINEAR_SCAN' ? new LinearLookup(rules) : new HashMapLookup(rules);
+    step2 = optimize(step1.lines, lookup, r => !re.isLimited(r.ingredientA, avoid) && !re.isLimited(r.ingredientB, avoid) && !re.isLimited(r.result, avoid));
+    finalFormula = step2.optimized;
+  }
+  return {original: mergeDuplicates(lines), afterReplacement: step1.lines, replacements: step1.replacements,
+          unresolved: step1.unresolved, consolidation: step2, finalFormula};
+}
+
 function benchmark(ruleCount, lookupCount){                               // Benchmark.run
   const code = i => 'SYN-' + String(i).padStart(6,'0');
   const rules = []; for (let i=0;i<ruleCount;i++) rules.push({id:i, ingredientA:code(i), ingredientB:code(i+1), result:'ACC-'+i});
@@ -324,14 +492,19 @@ function benchmark(ruleCount, lookupCount){                               // Ben
 }
 
 /* ---------- BACKEND: in-browser engine, or the Spring Boot API if it is running ---------- */
-let API = false, ingredients = DATA.ingredients, rules = DATA.rules;
+let API = false, ingredients = DATA.ingredients, rules = DATA.rules, recipes = DATA.recipes;
+const JSONPOST = body => ({method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
 const backend = {
   async optimize(lines, strategy){
-    if (API) return call('api/formulas/optimize', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lines, strategy})});
+    if (API) return call('api/formulas/optimize', JSONPOST({lines, strategy}));
     return optimize(lines, strategy === 'LINEAR_SCAN' ? new LinearLookup(rules) : new HashMapLookup(rules));
   },
+  async reformulate(lines, avoid, consolidate){
+    if (API) return call('api/formulas/reformulate', JSONPOST({lines, avoid, consolidate, strategy:'HASHMAP'}));
+    return reformulate(lines, avoid, consolidate, 'HASHMAP');
+  },
   async addRule(r){
-    if (API){ const saved = await call('api/rules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(r)}); rules = await call('api/rules'); return saved; }
+    if (API){ const saved = await call('api/rules', JSONPOST(r)); rules = await call('api/rules'); return saved; }
     if (r.ingredientA === r.ingredientB) throw new Error('A rule needs two different ingredients');
     if (r.result === r.ingredientA || r.result === r.ingredientB) throw new Error('The result must be a different ingredient from A and B');
     if (new HashMapLookup(rules).find(r.ingredientA, r.ingredientB, {pairChecks:0,comparisons:0})) throw new Error(`A rule for ${r.ingredientA} + ${r.ingredientB} already exists`);
@@ -350,80 +523,151 @@ async function detectBackend(){
     const ctl = new AbortController(); setTimeout(()=>ctl.abort(), 1500);
     const res = await fetch('api/health', {signal:ctl.signal});
     const h = res.ok ? await res.json() : null;
-    if (h && h.mode === 'spring-boot'){ API = true; ingredients = await call('api/ingredients'); rules = await call('api/rules'); }
+    if (h && h.mode === 'spring-boot'){
+      API = true;
+      [ingredients, rules, recipes] = await Promise.all([call('api/ingredients'), call('api/rules'), call('api/recipes')]);
+    }
   } catch (e) { /* no backend: stay in browser mode */ }
   const m = document.getElementById('mode');
   m.textContent = API ? '● connected to Spring Boot API' : '● running in your browser';
   m.classList.toggle('api', API);
   document.getElementById('modeNote').textContent = API
     ? 'Mode: every request goes to the Java backend (Spring Boot + H2). Rules you add are saved with SQL INSERT.'
-    : 'Mode: GitHub Pages cannot run Java, so this page uses a line-by-line JavaScript port of the Java engine. Clone the repo and run `mvn spring-boot:run` to use the real Java API on the same page.';
+    : 'Mode: GitHub Pages cannot run Java, so this page uses a line-by-line JavaScript port of the Java engines. Clone the repo and run `mvn spring-boot:run` to use the real Java API on the same page.';
 }
 
-/* ---------- UI ---------- */
+/* ---------- UI helpers ---------- */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const byId = id => ingredients.find(i => i.id === id) || {id, name:id, accord:false};
-const chip = (id, pct) => { const i = byId(id); return `<span class="chip${i.accord?' acc':''}" title="${esc(i.id)}">${esc(i.name)}${pct!=null?` · ${pct}%`:''}</span>`; };
+const byId = id => ingredients.find(i => i.id === id) || {id, name:id, accord:false, status:'ACTIVE'};
+const nameOf = id => byId(id).name;
+const chip = (id, pct, cls) => { const i = byId(id); const c = cls ?? (i.accord ? 'acc' : '');
+  return `<span class="chip ${c}" title="${esc(i.id)}">${esc(i.name)}${pct!=null?` · ${pct}%`:''}</span>`; };
 const fmtNs = ns => ns < 1e3 ? `${ns} ns` : ns < 1e6 ? `${(ns/1e3).toFixed(1)} µs` : `${(ns/1e6).toFixed(ns<1e8?2:0)} ms`;
 const fmtN = n => Number(n).toLocaleString('en-US');
-let strategy = 'HASHMAP';
+const reasonText = {BANNED:'banned', RESTRICTED:'restricted', AVOIDED:'on your avoid list'};
 
 function options(sel, filter = () => true){
-  const groups = [['Raw materials', ingredients.filter(i=>!i.accord && filter(i))], ['Accords', ingredients.filter(i=>i.accord && filter(i))]];
-  return groups.map(([g,list]) => `<optgroup label="${g}">${list.map(i=>`<option value="${esc(i.id)}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('')}</optgroup>`).join('');
+  const groups = [['Raw materials', ingredients.filter(i=>!i.accord && i.status==='ACTIVE' && filter(i))],
+                  ['Regulated', ingredients.filter(i=>!i.accord && i.status!=='ACTIVE' && filter(i))],
+                  ['Accords', ingredients.filter(i=>i.accord && filter(i))]];
+  return groups.filter(([,l])=>l.length).map(([g,list]) => `<optgroup label="${g}">${list.map(i=>`<option value="${esc(i.id)}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('')}</optgroup>`).join('');
 }
-function lineRow(id, pct){
-  const tr = document.createElement('tr');
-  tr.innerHTML = `<td><select aria-label="Ingredient">${options(id)}</select></td><td><input type="number" min="0.1" max="100" step="0.1" value="${pct}" aria-label="Percentage"></td><td><button class="x" title="Remove" aria-label="Remove">×</button></td>`;
-  tr.querySelector('.x').onclick = () => { tr.remove(); updateTotal(); };
-  tr.querySelector('input').oninput = updateTotal;
-  $('lines').appendChild(tr);
-}
-function readLines(){ return [...$('lines').querySelectorAll('tr')].map(tr => ({ingredientId: tr.querySelector('select').value, percentage: parseFloat(tr.querySelector('input').value) || 0})); }
-function updateTotal(){
-  const t = round(readLines().reduce((s,l)=>s+l.percentage,0)); const el = $('total');
-  el.innerHTML = `total <b>${t}%</b>`; el.classList.toggle('warn', Math.abs(t-100) > 0.01);
-}
-function loadPreset(name){ $('lines').innerHTML = ''; PRESETS[name].forEach(([id,p]) => lineRow(id,p)); updateTotal(); }
 
-function renderResult(r){
-  $('strategyUsed').textContent = r.strategy === 'HASHMAP' ? 'HashMap · O(1)' : 'Linear scan · O(R)';
-  const pct = Object.fromEntries(r.original.map(l=>[l.ingredientId,l.percentage]));
-  const steps = r.steps.length ? `<ol class="steps">${r.steps.map((s,k)=>`<li style="animation-delay:${k*.25}s">
-      <div class="eq"><span class="op">${s.step}.</span>${chip(s.ingredientA, s.pa ?? pct[s.ingredientA])}<span class="op">+</span>${chip(s.ingredientB, s.pb ?? pct[s.ingredientB])}<span class="op">→</span>${chip(s.result, s.combinedPercentage)}</div>
-      <div class="why"><i>${esc(s.reason)}</i>${esc(s.note)}</div></li>`).join('')}</ol>`
-    : `<div class="empty" style="margin-bottom:14px">No rule matched any pair, so the formula is unchanged.</div>`;
-  const colors = ['#5eead4','#a78bfa','#fbbf24','#60a5fa','#f9a8d4','#86efac','#fca5a5','#c4b5fd','#fdba74'];
-  const col = new Map(); [...r.original, ...r.optimized].forEach(l => { if (!col.has(l.ingredientId)) col.set(l.ingredientId, colors[col.size % colors.length]); });
+/* A formula editor (used twice) */
+function makeEditor(tbodyId, totalId, onChange = () => {}){
+  const tbody = $(tbodyId), total = $(totalId);
+  const ed = {
+    add(id, pct){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><select aria-label="Ingredient">${options(id)}</select></td><td><input type="number" min="0.01" max="100" step="0.01" value="${pct}" aria-label="Percentage"></td><td><button class="x" title="Remove" aria-label="Remove">×</button></td>`;
+      tr.querySelector('.x').onclick = () => { tr.remove(); ed.update(); };
+      tr.querySelector('input').oninput = ed.update;
+      tr.querySelector('select').onchange = ed.update;
+      tbody.appendChild(tr);
+    },
+    read(){ return [...tbody.querySelectorAll('tr')].map(tr => ({ingredientId: tr.querySelector('select').value, percentage: parseFloat(tr.querySelector('input').value) || 0})); },
+    load(lines){ tbody.innerHTML = ''; lines.forEach(([id,p]) => ed.add(id,p)); ed.update(); },
+    update(){
+      const t = round(ed.read().reduce((s,l)=>s+l.percentage,0));
+      total.innerHTML = `total <b>${t}%</b>`; total.classList.toggle('warn', Math.abs(t-100) > 0.01); onChange();
+    }
+  };
+  return ed;
+}
+
+const COLORS = ['#5eead4','#a78bfa','#fbbf24','#60a5fa','#f9a8d4','#86efac','#fca5a5','#c4b5fd','#fdba74','#67e8f9'];
+function beforeAfter(before, after, labels = ['before','after']){
+  const col = new Map(); [...before, ...after].forEach(l => { if (!col.has(l.ingredientId)) col.set(l.ingredientId, COLORS[col.size % COLORS.length]); });
   const side = (title, lines) => `<div><h4>${title} · ${lines.length} lines</h4>
-      <div class="bar">${lines.map(l=>`<span style="width:${l.percentage}%;background:${col.get(l.ingredientId)}" title="${esc(byId(l.ingredientId).name)} ${l.percentage}%"></span>`).join('')}</div>
-      <table class="mini"><tbody>${lines.map(l=>`<tr><td><span style="color:${col.get(l.ingredientId)}">■</span> ${esc(byId(l.ingredientId).name)}</td><td>${l.percentage}%</td></tr>`).join('')}</tbody></table></div>`;
-  $('result').innerHTML = `
+      <div class="bar">${lines.map(l=>`<span style="width:${l.percentage}%;background:${col.get(l.ingredientId)}" title="${esc(nameOf(l.ingredientId))} ${l.percentage}%"></span>`).join('')}</div>
+      <table class="mini"><tbody>${lines.map(l=>{ const i = byId(l.ingredientId); const tag = i.status==='BANNED' ? ' <span class="flag BANNED">BANNED</span>' : i.status==='RESTRICTED' ? ' <span class="flag">max '+i.maxPercent+'%</span>' : '';
+        return `<tr><td><span style="color:${col.get(l.ingredientId)}">■</span> ${esc(i.name)}${tag}</td><td>${l.percentage}%</td></tr>`; }).join('')}</tbody></table></div>`;
+  return `<div class="ba">${side(labels[0], before)}${side(labels[1], after)}</div>`;
+}
+function consolidationSteps(steps, start, delay = 0){
+  const pct = Object.fromEntries(start.map(l=>[l.ingredientId,l.percentage]));
+  return `<ol class="steps">${steps.map((s,k)=>`<li style="animation-delay:${delay + k*.22}s">
+      <div class="eq"><span class="op">${s.step}.</span>${chip(s.ingredientA, s.pa ?? pct[s.ingredientA])}<span class="op">+</span>${chip(s.ingredientB, s.pb ?? pct[s.ingredientB])}<span class="op">→</span>${chip(s.result, s.combinedPercentage, 'acc')}</div>
+      <div class="why"><i>${esc(s.reason)}</i>${esc(s.note)}</div></li>`).join('')}</ol>`;
+}
+
+/* ---------- Section 1: consolidate ---------- */
+let strategy = 'HASHMAP';
+function renderConsolidation(r){
+  $('strategyUsed').textContent = r.strategy === 'HASHMAP' ? 'HashMap · O(1)' : 'Linear scan · O(R)';
+  const steps = r.steps.length ? consolidationSteps(r.steps, r.original)
+    : `<div class="empty" style="margin-bottom:14px">No rule matched any pair, so the formula is unchanged.</div>`;
+  $('resultC').innerHTML = `
     <div class="stats">
       <div class="stat"><small>lines</small><b class="a">${r.original.length} → ${r.optimized.length}</b></div>
       <div class="stat"><small>pair checks</small><b>${fmtN(r.pairChecks)}</b></div>
       <div class="stat"><small>rule comparisons</small><b>${fmtN(r.comparisons)}</b></div>
       <div class="stat"><small>engine time</small><b>${fmtNs(r.elapsedNanos)}</b></div>
-    </div>
-    ${steps}
-    <div class="ba">${side('before', r.original)}${side('after', r.optimized)}</div>`;
+    </div>${steps}${beforeAfter(r.original, r.optimized)}`;
 }
 
-function renderRules(){
+/* ---------- Section 2: replace ---------- */
+const avoidSet = new Set();
+function renderAvoid(){
+  const inFormula = [...new Set(edR.read().map(l => l.ingredientId))];
+  const ids = [...inFormula, ...[...avoidSet].filter(id => !inFormula.includes(id))];
+  $('avoid').innerHTML = ids.map(id => {
+    const i = byId(id);
+    if (i.status === 'BANNED') return `<span class="av lock BANNED" title="${esc(i.regulatoryNote)}">${esc(i.name)} · banned</span>`;
+    if (i.status === 'RESTRICTED' && !avoidSet.has(id)) return `<span class="av lock RESTRICTED" title="${esc(i.regulatoryNote)}">${esc(i.name)} · max ${i.maxPercent}%</span>`;
+    return `<button class="av${avoidSet.has(id)?' on':''}" data-id="${esc(id)}" title="${avoidSet.has(id)?'Click to allow again':'Click to avoid'}">${esc(i.name)}${inFormula.includes(id)?'':' · substitute'}</button>`;
+  }).join('');
+  $('avoid').querySelectorAll('button.av').forEach(b => b.onclick = () => { const id = b.dataset.id; avoidSet.has(id) ? avoidSet.delete(id) : avoidSet.add(id); renderAvoid(); });
+  $('avoidMore').innerHTML = `<option value="">+ avoid another ingredient (e.g. a substitute)…</option>` +
+    options(null, i => i.status === 'ACTIVE' && !avoidSet.has(i.id) && !inFormula.includes(i.id));
+}
+function renderReformulation(r){
+  const rep = r.replacements;
+  const review = r.unresolved.length;
+  $('reviewNote').textContent = review ? `${review} need${review>1?'':'s'} review` : '';
+  const items = rep.map((a,k) => {
+    const i = byId(a.ingredientId);
+    const trig = a.trigger === 'RESTRICTED' ? `RESTRICTED · max ${i.maxPercent}%` : a.trigger;
+    const lhs = chip(a.ingredientId, a.originalPercentage, a.trigger === 'RESTRICTED' ? 'res' : 'ban');
+    const skipped = a.skipped.map(s => `<div class="skip">✕ option ${s.option} skipped: uses ${esc(nameOf(s.blockedIngredient))}, which is <s>${reasonText[s.reason]}</s></div>`).join('');
+    if (a.optionUsed == null) return `<li class="bad" style="animation-delay:${k*.22}s"><div class="eq">${lhs}<span class="op">→</span><span class="flag BANNED">NEEDS REVIEW</span></div>
+        <div class="why"><span class="flag ${a.trigger}">${trig}</span>${esc(a.note)}. It stays in the formula so nothing is lost.</div>${skipped}</li>`;
+    const kept = a.keptPercentage > 0 ? `${chip(a.ingredientId, a.keptPercentage, 'res')}<span class="op">kept +</span>` : '';
+    const rhs = a.added.map(l => chip(l.ingredientId, l.percentage, 'new')).join('<span class="op">+</span>');
+    return `<li style="animation-delay:${k*.22}s"><div class="eq">${lhs}<span class="op">→</span>${kept}${rhs}</div>
+        <div class="why"><span class="flag ${a.trigger}">${trig}</span>option ${a.optionUsed}: ${esc(a.note)}</div>${skipped}</li>`;
+  }).join('');
+  const step1 = rep.length ? `<div class="phase">step 1 · replace (C → A + B)</div><ol class="steps rep">${items}</ol>`
+    : `<div class="empty" style="margin-bottom:14px">Nothing is banned, over its limit or avoided, so nothing to replace.</div>`;
+  const c = r.consolidation;
+  const step2 = !c ? '' : `<div class="phase">step 2 · consolidate (A + B → C)</div>` + (c.steps.length
+    ? consolidationSteps(c.steps, c.original, rep.length * .22)
+    : `<div class="empty" style="margin-bottom:14px">No allowed pair to consolidate.</div>`);
+  $('resultR').innerHTML = `
+    <div class="stats">
+      <div class="stat"><small>replaced</small><b class="v">${rep.filter(a=>a.optionUsed!=null).length}</b></div>
+      <div class="stat"><small>needs review</small><b class="${review?'r':''}">${review}</b></div>
+      <div class="stat"><small>consolidated</small><b class="a">${c ? c.steps.length : '–'}</b></div>
+      <div class="stat"><small>lines</small><b>${r.original.length} → ${r.finalFormula.length}</b></div>
+    </div>${step1}${step2}${beforeAfter(r.original, r.finalFormula, ['before','after'])}`;
+}
+
+/* ---------- Section 3: rule book ---------- */
+function renderBook(){
   $('ruleRows').innerHTML = rules.map(r => `<tr><td>${r.id}</td><td><div class="eq">${chip(r.ingredientA)}<span class="op">+</span>${chip(r.ingredientB)}<span class="op">→</span>${chip(r.result)}</div></td>
     <td><div class="why" style="margin:0"><i>${esc(r.reason)}</i>${esc(r.note)}</div></td></tr>`).join('');
+  const sorted = recipes.slice().sort((x,y) => nameOf(x.target).localeCompare(nameOf(y.target)) || x.priority - y.priority);
+  $('recipeRows').innerHTML = sorted.map(r => {
+    const t = byId(r.target), cls = t.status==='BANNED' ? 'ban' : t.status==='RESTRICTED' ? 'res' : '';
+    return `<tr><td>${r.priority}</td><td><div class="eq">${chip(r.target, null, cls)}<span class="op">→</span>${r.parts.map(p => chip(p.ingredientId, Math.round(p.fraction*100), 'new')).join('<span class="op">+</span>')}</div></td>
+      <td><div class="why" style="margin:0">${esc(r.note)}</div></td></tr>`; }).join('');
+  $('regRows').innerHTML = ingredients.filter(i => i.status !== 'ACTIVE').map(i => `<tr><td><span class="flag ${i.status}">${i.status}${i.status==='RESTRICTED'?' · max '+i.maxPercent+'%':''}</span></td>
+    <td>${esc(i.name)}</td><td><div class="why" style="margin:0">${esc(i.regulatoryNote)}</div></td></tr>`).join('');
 }
-function fillRuleForm(){
-  $('ra').innerHTML = options('CED'); $('rb').innerHTML = options('EUG'); $('rc').innerHTML = options(null, i => i.accord);
-}
+function fillRuleForm(){ $('ra').innerHTML = options('CED', i => i.status==='ACTIVE'); $('rb').innerHTML = options('EUG', i => i.status==='ACTIVE'); $('rc').innerHTML = options(null, i => i.accord); }
 
-async function run(){
-  const btn = $('run'); btn.disabled = true;
-  try { renderResult(await backend.optimize(readLines(), strategy)); }
-  catch (e) { $('result').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }
-  finally { btn.disabled = false; }
-}
+/* ---------- Section 4: benchmark ---------- */
 async function runBench(){
   const btn = $('runBench'); btn.disabled = true; btn.textContent = 'running…';
   const n = +document.querySelector('#benchSize .on').dataset.n;
@@ -436,8 +680,8 @@ async function runBench(){
     $('fH').style.width = Math.max(0.6, b.hashMapNanos / max * 100) + '%'; $('fL').style.width = (b.linearScanNanos / max * 100) + '%';
     $('speedup').textContent = `${fmtN(Math.round(b.speedup))}×`;
     $('bLookups').textContent = `${fmtN(b.lookups)} on ${fmtN(b.rules)} rules`;
-    $('bCH').textContent = `${fmtN(b.hashMapComparisons)} (1 per lookup)`;
-    $('bCL').textContent = `${fmtN(b.linearScanComparisons)} (~${fmtN(Math.round(b.linearScanComparisons / b.lookups))} per lookup)`;
+    $('bCH').textContent = `${fmtN(b.hashMapComparisons)} (1 per look-up)`;
+    $('bCL').textContent = `${fmtN(b.linearScanComparisons)} (~${fmtN(Math.round(b.linearScanComparisons / b.lookups))} per look-up)`;
     $('bWhere').textContent = API ? 'Java (JVM) via Spring Boot' : 'your browser (JS Map vs array)';
   } catch (e) { $('tL').textContent = 'error'; }
   finally { btn.disabled = false; btn.textContent = '▶ Run benchmark'; }
@@ -448,27 +692,49 @@ function segment(groupSel, onPick){
     document.querySelectorAll(groupSel + ' button').forEach(x => x.classList.toggle('on', x === b)); onPick(b);
   });
 }
+async function runWith(btnId, outId, fn){
+  const btn = $(btnId); btn.disabled = true;
+  try { await fn(); } catch (e) { $(outId).innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
 
+let edC, edR;
 (async function init(){
   await detectBackend();
-  $('preset').innerHTML = Object.keys(PRESETS).map(n => `<option>${esc(n)}</option>`).join('');
-  $('preset').onchange = e => loadPreset(e.target.value);
-  loadPreset('Lavender Fougère');
-  $('addLine').onclick = () => { lineRow('BGM', 5); updateTotal(); };
-  $('run').onclick = run;
-  segment('#try .seg', b => { strategy = b.dataset.s; });
-  segment('#benchSize', () => {});
-  $('runBench').onclick = runBench;
-  renderRules(); fillRuleForm();
+  // section 1
+  edC = makeEditor('linesC', 'totalC');
+  $('presetC').innerHTML = Object.keys(PRESETS_C).map(n => `<option>${esc(n)}</option>`).join('');
+  $('presetC').onchange = e => edC.load(PRESETS_C[e.target.value]);
+  edC.load(PRESETS_C['Lavender Fougère']);
+  $('addLineC').onclick = () => { edC.add('BGM', 5); edC.update(); };
+  segment('#stratC', b => { strategy = b.dataset.s; });
+  const runC = () => runWith('runC', 'resultC', async () => renderConsolidation(await backend.optimize(edC.read(), strategy)));
+  $('runC').onclick = runC;
+  // section 2
+  edR = makeEditor('linesR', 'totalR', () => renderAvoid());
+  $('presetR').innerHTML = Object.keys(PRESETS_R).map(n => `<option>${esc(n)}</option>`).join('');
+  const loadR = name => { avoidSet.clear(); PRESETS_R[name].avoid.forEach(id => avoidSet.add(id)); edR.load(PRESETS_R[name].lines); };
+  $('presetR').onchange = e => loadR(e.target.value);
+  loadR(Object.keys(PRESETS_R)[0]);
+  $('addLineR').onclick = () => { edR.add('BGM', 5); edR.update(); };
+  $('avoidMore').onchange = e => { if (e.target.value){ avoidSet.add(e.target.value); renderAvoid(); } };
+  const runR = () => runWith('runR', 'resultR', async () => renderReformulation(await backend.reformulate(edR.read(), [...avoidSet], $('consolidate').checked)));
+  $('runR').onclick = runR;
+  // section 3
+  renderBook(); fillRuleForm();
+  segment('#bookTabs', b => ['tCons','tRep','tReg'].forEach(t => $(t).hidden = t !== b.dataset.t));
   $('addRule').onclick = async () => {
     const msg = $('ruleMsg'); msg.className = 'msg';
     try {
       const r = await backend.addRule({ingredientA:$('ra').value, ingredientB:$('rb').value, result:$('rc').value, reason:$('rr').value, note:$('rn').value.trim()});
-      renderRules(); $('rn').value = '';
+      renderBook(); $('rn').value = '';
       msg.className = 'msg ok'; msg.textContent = `Rule #${r.id} added${API ? ' (saved to SQL)' : ' (in this browser tab only)'}. Try a formula that contains both ingredients.`;
     } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; }
   };
-  run();
+  // section 4
+  segment('#benchSize', () => {});
+  $('runBench').onclick = runBench;
+  runC(); runR();
 })();
 </script>
 </body>

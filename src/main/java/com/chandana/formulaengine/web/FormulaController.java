@@ -3,6 +3,8 @@ package com.chandana.formulaengine.web;
 import com.chandana.formulaengine.engine.Benchmark;
 import com.chandana.formulaengine.model.FormulaLine;
 import com.chandana.formulaengine.model.Ingredient;
+import com.chandana.formulaengine.model.ReformulationResult;
+import com.chandana.formulaengine.model.ReplacementRecipe;
 import com.chandana.formulaengine.model.SubstitutionResult;
 import com.chandana.formulaengine.model.SubstitutionRule;
 import com.chandana.formulaengine.service.FormulaService;
@@ -25,6 +27,10 @@ import java.util.Map;
 public class FormulaController {
 
     public record OptimizeRequest(List<FormulaLine> lines, String strategy) {
+    }
+
+    /** avoid = ingredients the company no longer wants (on top of banned / restricted ones). */
+    public record ReformulateRequest(List<FormulaLine> lines, List<String> avoid, Boolean consolidate, String strategy) {
     }
 
     public record NewRuleRequest(String ingredientA, String ingredientB, String result, String reason, String note) {
@@ -61,6 +67,18 @@ public class FormulaController {
     public SubstitutionResult optimize(@RequestBody OptimizeRequest request) {
         Strategy strategy = "LINEAR_SCAN".equalsIgnoreCase(request.strategy()) ? Strategy.LINEAR_SCAN : Strategy.HASHMAP;
         return service.optimize(request.lines(), strategy);
+    }
+
+    @GetMapping("/recipes")
+    public List<ReplacementRecipe> recipes() {
+        return service.recipes();
+    }
+
+    @PostMapping("/formulas/reformulate")
+    public ReformulationResult reformulate(@RequestBody ReformulateRequest request) {
+        Strategy strategy = "LINEAR_SCAN".equalsIgnoreCase(request.strategy()) ? Strategy.LINEAR_SCAN : Strategy.HASHMAP;
+        boolean consolidate = request.consolidate() == null || request.consolidate();
+        return service.reformulate(request.lines(), request.avoid(), consolidate, strategy);
     }
 
     /** Compare both lookups on a synthetic rule book. Limits keep the slow path under ~1 second. */
